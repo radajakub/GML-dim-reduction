@@ -1,1 +1,2 @@
-notebooks\testing_notebook.ipynb
+notebooks/testing_notebook.ipynb
+__pycache__
