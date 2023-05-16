@@ -24,7 +24,7 @@ def build_graph(distances):
         if distances[u, v] == np.inf:
             raise Exception("Inifinty weight")
 
-        g.add_edge(u, v, weight=distances[u, v])
+        g.add_edge(u, v, weight=1/distances[u, v])
 
         idx += 1
 
