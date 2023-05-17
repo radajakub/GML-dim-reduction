@@ -31,7 +31,11 @@ def build_graph(data):
         if dist == np.inf:
             raise Exception("All edges added and graph is still incomplete??")
 
-        g.add_edge(u, v, weight=1/dist)
+        # TODO: think about this case in general - remove duplicities for learning or tune this value
+        # fix division by zero by putting there maximal float value
+        weight = np.finfo(np.float32).max if dist == 0 else 1/dist
+
+        g.add_edge(u, v, weight=weight)
 
         if nx.is_connected(g):
             break
@@ -39,7 +43,7 @@ def build_graph(data):
     return g
 
 
-def embed_graph(graph, dims=2, walk_length=100, num_walks=10, seed=0):
+def embed_graph(graph, dims=2, walk_length=100, num_walks=10, seed=0, window=10, min_count=1, batch_words=4):
     # compute embeddings
     # num_walks ... number of walks PER NODE
     # p ... return hyperparameter (default 1)
@@ -55,7 +59,8 @@ def embed_graph(graph, dims=2, walk_length=100, num_walks=10, seed=0):
     # epochs ... number of epochs (default 5)
     # batch_words ...(deafult 10000)
     # more at https://radimrehurek.com/gensim/models/word2vec.html
-    model = node2vec.fit(window=10, min_count=1, batch_words=4)
+    model = node2vec.fit(window=window, min_count=min_count,
+                         batch_words=batch_words)
 
     # put all embeddings to np matrix while preserving original order
     embeddings = np.vstack(model.wv[sorted(w for w in model.wv.key_to_index)])

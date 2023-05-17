@@ -5,7 +5,7 @@ import networkx as nx
 matplotlib.rcParams['figure.figsize'] = [20, 5]
 
 
-def show_data(data, graph, labels=None, aspect='equal', outpath=''):
+def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers=True):
     if data.shape[1] > 3 and data.shape[1] < 2:
         raise Exception(
             "cannot visualize data with dimension higher than 3 or lower than 2")
@@ -18,35 +18,48 @@ def show_data(data, graph, labels=None, aspect='equal', outpath=''):
 
         # plot data
         ax1.scatter(data[:, 0], data[:, 1], c=labels)
-        for i in range(data.shape[0]):
-            ax1.text(data[i, 0], data[i, 1], str(i))
+        if show_numbers:
+            for i in range(data.shape[0]):
+                ax1.text(data[i, 0], data[i, 1], str(i))
     elif data.shape[1] == 3:
         fig = plt.figure()
         ax1 = plt.subplot(1, 2, 1, projection='3d')
         ax2 = plt.subplot(1, 2, 2)
+
         # set aspect ratio
         ax1.set_aspect(aspect, adjustable='box')
 
         # plot data
         ax1.scatter(data[:, 0], data[:, 1], data[:, 2], c=labels)
-        for i in range(data.shape[0]):
-            ax1.text(data[i, 0], data[i, 1], data[i, 2], str(i))
+        if show_numbers:
+            for i in range(data.shape[0]):
+                ax1.text(data[i, 0], data[i, 1], data[i, 2], str(i))
 
     # plot graph
-    layout = nx.spring_layout(graph)
-    nx.draw(graph, pos=layout, ax=ax2, with_labels=True,
-            node_color=labels, font_color='w')
-    labels = dict((key, round(val, ndigits=2))
-                  for key, val in nx.get_edge_attributes(graph, 'weight').items())
-    nx.draw_networkx_edge_labels(
-        graph, pos=layout, ax=ax2, edge_labels=labels)
+    show_graph(graph, labels=labels, ax=ax2)
 
     # save plot if outpath is specified
     if outpath != '':
         fig.savefig(outpath)
 
 
-def show_embedding(embeddings, labels=None, aspect='equal', outpath=''):
+def show_graph(graph, labels=None, ax=None, outpath=''):
+    if ax == None:
+        _, ax = plt.subplots(1, 1)
+
+    layout = nx.spring_layout(graph)
+    nx.draw(graph, pos=layout, ax=ax, with_labels=True,
+            node_color=labels, font_color='w')
+    labels = dict((key, round(val, ndigits=2))
+                  for key, val in nx.get_edge_attributes(graph, 'weight').items())
+    nx.draw_networkx_edge_labels(
+        graph, pos=layout, ax=ax, edge_labels=labels)
+
+    if outpath != '':
+        ax.savefig(outpath)
+
+
+def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True):
     if embeddings.shape[1] != 2:
         raise Exception(
             "cannot visualize embeddings with dimension other than 2")
@@ -58,8 +71,9 @@ def show_embedding(embeddings, labels=None, aspect='equal', outpath=''):
     ax.scatter(x, y, c=labels)
     ax.set_aspect(aspect, adjustable='box')
 
-    for idx in range(embeddings.shape[0]):
-        ax.annotate(idx, (embeddings[idx, 0], embeddings[idx, 1]))
+    if show_numbers:
+        for idx in range(embeddings.shape[0]):
+            ax.annotate(idx, (embeddings[idx, 0], embeddings[idx, 1]))
 
     # save plot if outpath is specified
     if outpath != '':
