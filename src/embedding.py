@@ -18,23 +18,23 @@ def build_graph(data):
     # build graph
     g = nx.Graph()
     g.add_nodes_from(np.arange(dists.shape[0]))
+
     triu_idx = np.triu_indices(dists.shape[0])
     dists[triu_idx] = np.inf
 
-    min_indices = np.column_stack(np.unravel_index(np.argsort(
-        dists, axis=None), dists.shape))
+    min_indices = np.unravel_index(np.argsort(
+        dists, axis=None), dists.shape)
 
-    idx = 0
-    while not nx.is_connected(g):
-        edge = min_indices[idx]
-        u, v = edge
+    for u, v in zip(*min_indices):
+        dist = dists[u, v]
 
-        if dists[u, v] == np.inf:
-            raise Exception("Inifinty weight")
+        if dist == np.inf:
+            raise Exception("All edges added and graph is still incomplete??")
 
-        g.add_edge(u, v, weight=1/dists[u, v])
+        g.add_edge(u, v, weight=1/dist)
 
-        idx += 1
+        if nx.is_connected(g):
+            break
 
     return g
 
