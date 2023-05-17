@@ -59,7 +59,7 @@ def show_graph(graph, labels=None, ax=None, outpath=''):
         ax.savefig(outpath)
 
 
-def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True):
+def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True,title=''):
     if embeddings.shape[1] != 2:
         raise Exception(
             "cannot visualize embeddings with dimension other than 2")
@@ -70,6 +70,7 @@ def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_num
 
     ax.scatter(x, y, c=labels)
     ax.set_aspect(aspect, adjustable='box')
+    ax.set_title(title)
 
     if show_numbers:
         for idx in range(embeddings.shape[0]):
