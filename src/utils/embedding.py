@@ -41,9 +41,20 @@ def build_graph(data):
 
 def embed_graph(graph, dims=2, walk_length=100, num_walks=10, seed=0):
     # compute embeddings
-    # TODO: look into the parameters of fit method, these ones are kind of random
+    # num_walks ... number of walks PER NODE
+    # p ... return hyperparameter (default 1)
+    # q ... inout parameter (default 1)
+    # quiet ... turn off output
     node2vec = Node2Vec(graph, dimensions=dims,
-                        walk_length=walk_length, num_walks=num_walks, seed=seed)
+                        walk_length=walk_length, num_walks=num_walks, seed=seed, quiet=False)
+    # window ... maximum distance between current and predicted word withing a sentence (default 5)
+    # min_count ... ignore words with frequency less then min_count (default 5)
+    # negative ... number of negative samples (default 5)
+    # alpha ... initial learning rate
+    # min_alpha ... learning rate will drop linearly to this value
+    # epochs ... number of epochs (default 5)
+    # batch_words ...(deafult 10000)
+    # more at https://radimrehurek.com/gensim/models/word2vec.html
     model = node2vec.fit(window=10, min_count=1, batch_words=4)
 
     # put all embeddings to np matrix while preserving original order
