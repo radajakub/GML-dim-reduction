@@ -2,16 +2,17 @@ from sklearn import metrics
 import numpy as np
 import networkx as nx
 from node2vec import Node2Vec
+from utils import weights
 
 
-def embed_data(data, dims=2, walk_length=100, num_walks=10, seed=0):
+def embed_data(data, weight_fun=weights.reciprocal, dims=2, walk_length=100, num_walks=10, seed=0):
     graph = build_graph(data)
     embeddings = embed_graph(
         graph, dims=dims, walk_length=walk_length, num_walks=num_walks, seed=seed)
     return embeddings
 
 
-def build_graph(data):
+def build_graph(data, weight_fun=weights.reciprocal):
     # compute distances between the points
     dists = metrics.pairwise_distances(data)
 
@@ -30,12 +31,10 @@ def build_graph(data):
 
         if dist == np.inf:
             raise Exception("All edges added and graph is still incomplete??")
+        elif dist == 0:
+            raise Exception("A pair of nodes with zero distance occurred")
 
-        # TODO: think about this case in general - remove duplicities for learning or tune this value
-        # fix division by zero by putting there maximal float value
-        weight = np.finfo(np.float32).max if dist == 0 else 1/dist
-
-        g.add_edge(u, v, weight=weight)
+        g.add_edge(u, v, weight=weight_fun(dist))
 
         if nx.is_connected(g):
             break
