@@ -56,7 +56,7 @@ def show_graph(graph, labels=None, ax=None, outpath=''):
         graph, pos=layout, ax=ax, edge_labels=labels)
 
     if outpath != '':
-        ax.savefig(outpath)
+        ax.figure.savefig(outpath)
 
 
 def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True,title=''):

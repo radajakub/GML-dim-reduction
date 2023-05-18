@@ -2,7 +2,7 @@ from sklearn import metrics
 import numpy as np
 import networkx as nx
 from node2vec import Node2Vec
-from utils import weights
+import weights
 
 
 def embed_data(data, weight_fun=weights.reciprocal, dims=2, walk_length=100, num_walks=10, seed=0):
@@ -65,3 +65,35 @@ def embed_graph(graph, dims=2, walk_length=100, num_walks=10, seed=0, window=10,
     embeddings = np.vstack(model.wv[sorted(w for w in model.wv.key_to_index)])
 
     return embeddings
+
+
+
+def build_other_graph(data, weight_fun=weights.reciprocal):
+    # compute distances between the points
+    dists = metrics.pairwise_distances(data)
+
+    # build graph
+    g = nx.Graph()
+    g.add_nodes_from(np.arange(dists.shape[0]))
+    triu_idx = np.triu_indices(dists.shape[0])
+    dists[triu_idx] = np.inf
+
+    print(np.tril_indices(dists.shape[0]))
+    for u, v in zip(*np.tril_indices(dists.shape[0],-1)):
+        dist = dists[u, v]
+        g.add_edge(u, v, weight=weight_fun(dist))
+        if nx.is_connected(g):
+            break
+    return g
+
+
+
+if __name__=='__main__':
+    import visualization
+    data = np.array([[1,2,3],[5,5,6],[7,8,9],[10,10,10]])
+    g = build_other_graph(data)
+    visualization.show_graph(g,outpath="test_2.png")
+    g2 = build_graph(data)
+    visualization.show_graph(g2,outpath="test_1.png")
+
+
