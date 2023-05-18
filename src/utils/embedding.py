@@ -30,10 +30,10 @@ def build_graph(data):
 
         if dist == np.inf:
             raise Exception("All edges added and graph is still incomplete??")
+        elif dist == 0:
+            raise Exception("A pair of nodes with zero distance occurred")
 
-        # TODO: think about this case in general - remove duplicities for learning or tune this value
-        # fix division by zero by putting there maximal float value
-        weight = np.finfo(np.float32).max if dist == 0 else 1/dist
+        weight = 1/dist
 
         g.add_edge(u, v, weight=weight)
 
