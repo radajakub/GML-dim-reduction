@@ -6,7 +6,7 @@ from utils import weights
 
 
 def embed_data(data, weight_fun=weights.reciprocal, dims=2, walk_length=100, num_walks=10, seed=0):
-    graph = build_graph(data)
+    graph = build_graph(data, weight_fun)
     embeddings = embed_graph(
         graph, dims=dims, walk_length=walk_length, num_walks=num_walks, seed=seed)
     return embeddings
