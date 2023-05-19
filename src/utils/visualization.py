@@ -59,12 +59,12 @@ def show_graph(graph, labels=None, ax=None, outpath=''):
         ax.figure.savefig(outpath)
 
 
-def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True,title=''):
+def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True, title=''):
     if embeddings.shape[1] != 2:
         raise Exception(
             "cannot visualize embeddings with dimension other than 2")
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(1, 1)
     x = embeddings[:, 0]
     y = embeddings[:, 1]
 
