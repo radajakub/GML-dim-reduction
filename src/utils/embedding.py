@@ -1,7 +1,6 @@
 from enum import Enum, auto
 from utils.features import FEATURE_KEY
 from node2vec import Node2Vec
-import weights
 import numpy as np
 from stellargraph.core import StellarGraph
 from stellargraph.mapper import AdjacencyPowerGenerator
