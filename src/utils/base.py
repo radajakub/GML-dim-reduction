@@ -1,8 +1,7 @@
 from sklearn import metrics
 import numpy as np
 import networkx as nx
-from utils import weights
-from utils import embedding
+from utils import weights, features, embedding
 from utils.embedding import EmbedAlgs
 
 # params for different algorithms:
@@ -27,7 +26,7 @@ def embed_data(data, algorithm, weight_fun=weights.reciprocal, dims=2, walk_leng
     return embeddings
 
 
-def build_graph(data, weight_fun=weights.reciprocal):
+def build_graph(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords):
     # compute distances between the points
     dists = metrics.pairwise_distances(data)
 
@@ -53,5 +52,8 @@ def build_graph(data, weight_fun=weights.reciprocal):
 
         if nx.is_connected(g):
             break
+
+    # add node features to graph
+    feature_fun(data, g)
 
     return g
