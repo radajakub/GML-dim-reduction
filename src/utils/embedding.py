@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from utils.features import FEATURE_KEY
 from node2vec import Node2Vec
 import weights
 import numpy as np
@@ -8,11 +9,16 @@ from stellargraph.layer import WatchYourStep
 from stellargraph.losses import graph_log_likelihood
 from tensorflow.keras import Model, regularizers
 import tensorflow as tf
+from stellargraph.mapper import GraphSAGELinkGenerator, GraphSAGENodeGenerator
+from stellargraph.layer import GraphSAGE, link_classification
+from stellargraph.data import UnsupervisedSampler
+from tensorflow import keras
 
 
 class EmbedAlgs(Enum):
     node2vec = auto(),
-    watchyourstep = auto()
+    watchyourstep = auto(),
+    graphsage = auto()
 
 
 def embed_graph_node2vec(graph, dims=2, walk_length=100, num_walks=10, seed=0, window=10, min_count=1, batch_words=4):
@@ -60,3 +66,45 @@ def embed_graph_wys(graph, dims=2, adjacency_powers=10, num_walks=150, attention
         train_gen, epochs=epochs, verbose=0, steps_per_epoch=int(len(stellar_graph.nodes()) // batch_size)
     )
     return wys.embeddings()
+
+
+# num_samples ... number of 1-hop, 2-hop, ..., n-hop samples
+def embed_graphsage(graph, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[10, 2], dropout=0.05, bias=True):
+    sgraph = StellarGraph.from_networkx(graph, node_features=FEATURE_KEY)
+    nodes = list(sgraph.nodes())
+    unsupervised_samples = UnsupervisedSampler(
+        sgraph, nodes=nodes, length=walk_length, number_of_walks=num_walks)
+    generator = GraphSAGELinkGenerator(
+        sgraph, batch_size, num_samples, weighted=True)
+    train_gen = generator.flow(unsupervised_samples)
+    graphsage = GraphSAGE(
+        layer_sizes=layer_sizes, generator=generator, bias=bias, dropout=dropout, normalize="l2"
+    )
+    x_inp, x_out = graphsage.in_out_tensors()
+    prediction = link_classification(
+        output_dim=1, output_act="relu", edge_embedding_method="ip"
+    )(x_out)
+    model = keras.Model(inputs=x_inp, outputs=prediction)
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=1e-3),
+        loss=keras.losses.binary_crossentropy,
+        metrics=[keras.metrics.binary_accuracy],
+    )
+
+    history = model.fit(
+        train_gen,
+        epochs=epochs,
+        verbose=1,
+        use_multiprocessing=False,
+        workers=1,
+        shuffle=True,
+    )
+
+    x_inp_src = x_inp[0::2]
+    x_out_src = x_out[0]
+    embedding_model = keras.Model(inputs=x_inp_src, outputs=x_out_src)
+    node_ids = np.arange(len(nodes))
+    node_gen = GraphSAGENodeGenerator(
+        sgraph, batch_size, num_samples, weighted=True).flow(node_ids)
+
+    return embedding_model.predict(node_gen, workers=1, verbose=1)
