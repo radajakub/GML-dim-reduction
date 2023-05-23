@@ -1,6 +1,6 @@
 # TODO
 
-- [ ] metric to compare results
+- [X] Kmean measure
 - [X] Trustworthiness measure
 - [ ] other datasets than iris
 - [ ] new graph building functions, weighting functions and features ??? maybe
