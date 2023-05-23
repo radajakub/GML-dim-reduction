@@ -1,8 +1,9 @@
 from utils import build, weights, features, embedding
 from utils.embedding import EmbedAlgs
 from sklearn.manifold import trustworthiness
-
-
+from sklearn.cluster import KMeans
+from sklearn.metrics import classification_report
+import numpy as np
 # params for different algorithms:
 # EmbedAlgs.node2vec
 #   - weight_fun, dims, walk_length, num_walks, seed
@@ -29,3 +30,18 @@ def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun
         raise Exception("You have to select an embedding algorithm")
     print("Trustworthiness: ", trustworthiness(data,embeddings))
     return embeddings
+
+
+def eval_kmean_embed_data(data,algorithm,labels, **kwargs):
+    '''
+    Evaluates the embedding of the data using the given algorithm and labels
+    with the KMeans clustering algorithm
+    '''
+    #we could also compare the kmeans score before and after the embedding
+    embedding = embed_data(data,algorithm, **kwargs)
+    values, counts = np.unique(labels, return_counts=True)
+    kmeans_embed = KMeans(n_clusters=len(counts), random_state=0).fit(embedding)
+    #compute classification error between kmeans.labels and real labels
+    ret = classification_report(labels, kmeans_embed.labels_)
+    print(ret)
+    return embedding

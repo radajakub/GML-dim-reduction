@@ -1,6 +1,7 @@
 # TODO
 
 - [ ] metric to compare results
+- [X] Trustworthiness measure
 - [ ] other datasets than iris
 - [ ] new graph building functions, weighting functions and features ??? maybe
 - [ ] do grid search on all current combinaions of weights, builds, features, etc.
@@ -10,3 +11,11 @@
 
 - [ ] Remake the graph building to stellargraph framework directly??
   - networkx is used for graph construction and node2vec, other algorithms use StellarGraph, so if we don't use node2vec, but other algorithms it would be more efficient to construct the graph as Stellargraph directly and not transform it from networkx
+
+
+
+
+
+We get this error : 
+The requirements.txt doesn't work with python3.6 it has to be updated
+
