@@ -1,5 +1,6 @@
 from utils import build, weights, features, embedding
 from utils.embedding import EmbedAlgs
+from sklearn.manifold import trustworthiness
 
 
 # params for different algorithms:
@@ -26,5 +27,5 @@ def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun
                                                epochs=epochs, num_samples=num_samples, layer_sizes=layer_sizes, dropout=dropout, bias=bias)
     else:
         raise Exception("You have to select an embedding algorithm")
-
+    print("Trustworthiness: ", trustworthiness(data,embeddings))
     return embeddings

@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import matplotlib
 import networkx as nx
+from sklearn.manifold import trustworthiness
+
 
 matplotlib.rcParams['figure.figsize'] = [20, 5]
 
@@ -34,7 +36,6 @@ def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers
         if show_numbers:
             for i in range(data.shape[0]):
                 ax1.text(data[i, 0], data[i, 1], data[i, 2], str(i))
-
     # plot graph
     show_graph(graph, labels=labels, ax=ax2)
 
@@ -59,7 +60,7 @@ def show_graph(graph, labels=None, ax=None, outpath=''):
         ax.figure.savefig(outpath)
 
 
-def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True, title=''):
+def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True, title='',subtitle=''):
     if embeddings.shape[1] != 2:
         raise Exception(
             "cannot visualize embeddings with dimension other than 2")

@@ -105,5 +105,5 @@ def embed_graphsage(graph, num_walks=10, walk_length=10, batch_size=50, epochs=4
     node_ids = np.arange(len(nodes))
     node_gen = GraphSAGENodeGenerator(
         sgraph, batch_size, num_samples, weighted=True).flow(node_ids)
-
+    
     return embedding_model.predict(node_gen, workers=1, verbose=1)

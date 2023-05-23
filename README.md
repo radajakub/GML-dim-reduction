@@ -21,8 +21,7 @@
 - [X] Create toy dataset
 - [X] Create graph embeding function
 - [X] Create point -> Graph function
-- [ ] Create comparative benchmarks
-- [ ] Find medium sized with arround 6 dim dataset (iris)
-- [ ] Test different point -> Graph function
-- [ ]
+- [X] Create comparative benchmarks
+- [X] Find medium sized with arround 6 dim dataset (iris)
+- [X] Test different point -> Graph function
 
