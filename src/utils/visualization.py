@@ -37,6 +37,8 @@ def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers
             for i in range(data.shape[0]):
                 ax1.text(data[i, 0], data[i, 1], data[i, 2], str(i))
 
+    show_graph(graph, labels=labels, ax=ax2)
+
     # save plot if outpath is specified
     if outpath != '':
         fig.savefig(outpath)
