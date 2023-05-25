@@ -9,7 +9,7 @@ def multiply_edges(graph, mult):
         d['weight'] *= mult
 
 
-def build_graph_cheapest(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords):
+def build_graph_cheapest(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
     # compute distances between the points
     dists = metrics.pairwise_distances(data)
 
@@ -44,7 +44,7 @@ def build_graph_cheapest(data, weight_fun=weights.reciprocal, feature_fun=featur
     return g
 
 
-def build_graph_full(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords):
+def build_graph_full(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
     dists = metrics.pairwise_distances(data)
 
     g = nx.Graph()
@@ -66,7 +66,7 @@ def build_graph_full(data, weight_fun=weights.reciprocal, feature_fun=features.f
     return g
 
 
-def build_graph_spanning(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords):
+def build_graph_spanning(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
     full = build_graph_full(data, weight_fun=weight_fun,
                             feature_fun=feature_fun)
     # multiply all edges by -1
@@ -80,36 +80,38 @@ def build_graph_spanning(data, weight_fun=weights.reciprocal, feature_fun=featur
     return g
 
 
-def build_graph_nn(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, show_debug=False):
+def build_graph_nn(data, weight_fun=weights.reciprocal, knn=1):
     v_count = data.shape[0]
+
+    # ensure that knn is not bigger than number of remaining nodes
+    knn = min(knn, v_count - 1)
 
     dists = metrics.pairwise_distances(
         data) + np.diag(np.repeat(np.inf, v_count))
 
     # indices to first nearest neighbor of each point
-    nns = np.argmin(dists, axis=1)
+    nns = np.argsort(dists, axis=-1)
 
     g = nx.Graph()
     g.add_nodes_from(np.arange(v_count))
 
-    if show_debug:
-        visualization.show_graph_in_data(
-            data, g, aspect='auto', show_numbers=True, title='empty graph')
-
     # connect nearest neighbors
     for u in range(v_count):
-        v = nns[u]
-        dist = dists[u, v]
+        for i in range(knn):
+            v = nns[u, i]
+            dist = dists[u, v]
 
-        if dist == 0:
-            raise Exception("A pair of nodes with zero distance occurred")
+            if dist == 0:
+                raise Exception("A pair of nodes with zero distance occurred")
 
-        g.add_edge(u, v, weight=weight_fun(dist)
-                   if weight_fun is not None else 0)
+            g.add_edge(u, v, weight=weight_fun(dist)
+                       if weight_fun is not None else 0)
 
-    if show_debug:
-        visualization.show_graph_in_data(
-            data, g, aspect='auto', show_numbers=True, title='nearest neighbors')
+    return g, dists
+
+
+def build_graph_nn_cheapest(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=1):
+    g, dists = build_graph_nn(data, weight_fun=weight_fun, knn=knn)
 
     # find connected groups of nodes
     connected_components = list(nx.connected_components(g))
@@ -129,9 +131,31 @@ def build_graph_nn(data, weight_fun=weights.reciprocal, feature_fun=features.fea
             g.add_edge(compi[min_idx[0]], compj[min_idx[1]], weight=weight_fun(pair_dists[min_idx])
                        if weight_fun is not None else 0)
 
-    if show_debug:
-        visualization.show_graph_in_data(
-            data, g, aspect='auto', show_numbers=True, title='nearest neighbors')
+    # add node features to graph
+    if feature_fun is not None:
+        feature_fun(data, g)
+
+    return g
+
+
+def build_graph_nn_spanning(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=1):
+    # build k nearest neighbors
+    g, _ = build_graph_nn(data, weight_fun=weight_fun, knn=knn)
+
+    # build spanning tree of a full graph
+    spanning = build_graph_spanning(
+        data, weight_fun=weight_fun, feature_fun=feature_fun)
+
+    # compute membership in connected components
+    cc_membership = np.zeros(data.shape[0], dtype=np.int32)
+    for i, cc in enumerate(nx.connected_components(g)):
+        for u in cc:
+            cc_membership[u] = i
+
+    # add edges from spanning tree if the two nodes are in different components
+    for u, v, w in spanning.edges(data=True):
+        if cc_membership[u] != cc_membership[v]:
+            g.add_edge(u, v, **w)
 
     # add node features to graph
     if feature_fun is not None:

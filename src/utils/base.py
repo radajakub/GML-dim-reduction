@@ -13,9 +13,10 @@ import numpy as np
 #   - num_walks, walk_length, batch_size, epochs, num_samples(samples per leare, i.e. a list of k numbers), layer_sizes(list of sizes of layers, same length as num_samples), dropout, bias
 
 
-def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, dims=2, walk_length=100, num_walks=10, adjacency_powers=10, attention_regularization=0.5, batch_size=12, epochs=100, seed=0, num_samples=[10, 5], layer_sizes=[10, 2], dropout=0.0, bias=True):
+def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, dims=2, walk_length=100, num_walks=10, adjacency_powers=10, attention_regularization=0.5, batch_size=12, epochs=100, seed=0, num_samples=[10, 5], layer_sizes=[10, 2], dropout=0.0, bias=True, knn=1):
 
-    graph = build_fun(data, weight_fun=weight_fun, feature_fun=feature_fun)
+    graph = build_fun(data, weight_fun=weight_fun,
+                      feature_fun=feature_fun, knn=1)
 
     if algorithm is EmbedAlgs.node2vec:
         embeddings = embedding.embed_graph_node2vec(
@@ -28,7 +29,7 @@ def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun
                                                epochs=epochs, num_samples=num_samples, layer_sizes=layer_sizes, dropout=dropout, bias=bias)
     else:
         raise Exception("You have to select an embedding algorithm")
-    print("Trustworthiness: ", trustworthiness(data,embeddings))
+    print("Trustworthiness: ", trustworthiness(data, embeddings))
     return embeddings
 
 
@@ -37,11 +38,12 @@ def eval_kmean_classif_report_embed_data(data,algorithm,labels, **kwargs):
     Evaluates the embedding of the data using the given algorithm and labels
     with the KMeans clustering algorithm
     '''
-    #we could also compare the kmeans score before and after the embedding
-    embedding = embed_data(data,algorithm, **kwargs)
+    # we could also compare the kmeans score before and after the embedding
+    embedding = embed_data(data, algorithm, **kwargs)
     values, counts = np.unique(labels, return_counts=True)
-    kmeans_embed = KMeans(n_clusters=len(counts), random_state=0).fit(embedding)
-    #compute classification error between kmeans.labels and real labels
+    kmeans_embed = KMeans(n_clusters=len(
+        counts), random_state=0).fit(embedding)
+    # compute classification error between kmeans.labels and real labels
     ret = classification_report(labels, kmeans_embed.labels_)
     print(ret)
     return (embedding, ret)

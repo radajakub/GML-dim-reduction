@@ -36,15 +36,13 @@ def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers
         if show_numbers:
             for i in range(data.shape[0]):
                 ax1.text(data[i, 0], data[i, 1], data[i, 2], str(i))
-    # plot graph
-    show_graph(graph, labels=labels, ax=ax2)
 
     # save plot if outpath is specified
     if outpath != '':
         fig.savefig(outpath)
 
 
-def show_graph(graph, labels=None, ax=None, outpath=''):
+def show_graph(graph, labels=None, ax=None, outpath='', dpi=300):
     if ax == None:
         _, ax = plt.subplots(1, 1)
 
@@ -57,10 +55,10 @@ def show_graph(graph, labels=None, ax=None, outpath=''):
         graph, pos=layout, ax=ax, edge_labels=labels)
 
     if outpath != '':
-        ax.figure.savefig(outpath)
+        ax.figure.savefig(outpath, dpi=dpi)
 
 
-def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True, title='',subtitle=''):
+def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True, title='', subtitle='', dpi=300):
     if embeddings.shape[1] != 2:
         raise Exception(
             "cannot visualize embeddings with dimension other than 2")
@@ -69,9 +67,11 @@ def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_num
     x = embeddings[:, 0]
     y = embeddings[:, 1]
 
-    ax.scatter(x, y, c=labels)
     ax.set_aspect(aspect, adjustable='box')
+    ax.set_box_aspect(1)
     ax.set_title(title)
+    ax.grid(visible=True)
+    ax.scatter(x, y, c=labels)
 
     if show_numbers:
         for idx in range(embeddings.shape[0]):
@@ -79,10 +79,10 @@ def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_num
 
     # save plot if outpath is specified
     if outpath != '':
-        fig.savefig(outpath)
+        plt.savefig(outpath, facecolor='white', transparent=False, dpi=dpi)
 
 
-def show_graph_in_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers=True, title=''):
+def show_graph_in_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers=True, title='', dpi=300):
     if data.shape[1] != 2:
         raise Exception(
             "cannot visualize data with dimension other than 2")
@@ -110,4 +110,4 @@ def show_graph_in_data(data, graph, labels=None, aspect='equal', outpath='', sho
 
     # save plot if outpath is specified
     if outpath != '':
-        fig.savefig(outpath)
+        fig.savefig(outpath, dpi=dpi)
