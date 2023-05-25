@@ -9,7 +9,7 @@ def multiply_edges(graph, mult):
         d['weight'] *= mult
 
 
-def build_graph_cheapest(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords):
+def build_graph_cheapest(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
     # compute distances between the points
     dists = metrics.pairwise_distances(data)
 
@@ -44,7 +44,7 @@ def build_graph_cheapest(data, weight_fun=weights.reciprocal, feature_fun=featur
     return g
 
 
-def build_graph_full(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords):
+def build_graph_full(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
     dists = metrics.pairwise_distances(data)
 
     g = nx.Graph()
@@ -66,7 +66,7 @@ def build_graph_full(data, weight_fun=weights.reciprocal, feature_fun=features.f
     return g
 
 
-def build_graph_spanning(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords):
+def build_graph_spanning(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
     full = build_graph_full(data, weight_fun=weight_fun,
                             feature_fun=feature_fun)
     # multiply all edges by -1
@@ -156,5 +156,9 @@ def build_graph_nn_spanning(data, weight_fun=weights.reciprocal, feature_fun=fea
     for u, v, w in spanning.edges(data=True):
         if cc_membership[u] != cc_membership[v]:
             g.add_edge(u, v, **w)
+
+    # add node features to graph
+    if feature_fun is not None:
+        feature_fun(data, g)
 
     return g
