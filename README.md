@@ -1,6 +1,6 @@
 # GMLFinalProject
 
-
+Please use python 3.6 to run this project, as the stellar graph library we use for graph sage requires it
 
 
 

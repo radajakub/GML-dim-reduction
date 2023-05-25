@@ -32,7 +32,7 @@ def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun
     return embeddings
 
 
-def eval_kmean_embed_data(data,algorithm,labels, **kwargs):
+def eval_kmean_classif_report_embed_data(data,algorithm,labels, **kwargs):
     '''
     Evaluates the embedding of the data using the given algorithm and labels
     with the KMeans clustering algorithm
@@ -44,4 +44,6 @@ def eval_kmean_embed_data(data,algorithm,labels, **kwargs):
     #compute classification error between kmeans.labels and real labels
     ret = classification_report(labels, kmeans_embed.labels_)
     print(ret)
-    return embedding
+    return (embedding, ret)
+
+
