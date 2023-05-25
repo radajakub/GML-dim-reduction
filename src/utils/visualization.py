@@ -7,7 +7,7 @@ from sklearn.manifold import trustworthiness
 matplotlib.rcParams['figure.figsize'] = [20, 5]
 
 
-def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers=True):
+def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers=True, dpi=300):
     if data.shape[1] > 3 and data.shape[1] < 2:
         raise Exception(
             "cannot visualize data with dimension higher than 3 or lower than 2")
@@ -41,7 +41,7 @@ def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers
 
     # save plot if outpath is specified
     if outpath != '':
-        fig.savefig(outpath)
+        fig.savefig(outpath, dpi=dpi)
 
 
 def show_graph(graph, labels=None, ax=None, outpath='', dpi=300):
