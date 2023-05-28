@@ -1,13 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib
 import networkx as nx
-from sklearn.manifold import trustworthiness
 
 
 matplotlib.rcParams['figure.figsize'] = [20, 5]
 
 
-def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers=True, dpi=300):
+def show_data(data, graph, labels=None, aspect='auto', outpath='', show_numbers=False, dpi=300):
     if data.shape[1] > 3 and data.shape[1] < 2:
         raise Exception(
             "cannot visualize data with dimension higher than 3 or lower than 2")
@@ -23,7 +22,7 @@ def show_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers
         if show_numbers:
             for i in range(data.shape[0]):
                 ax1.text(data[i, 0], data[i, 1], str(i))
-    elif data.shape[1] == 3:
+    else:
         fig = plt.figure()
         ax1 = plt.subplot(1, 2, 1, projection='3d')
         ax2 = plt.subplot(1, 2, 2)
@@ -60,7 +59,7 @@ def show_graph(graph, labels=None, ax=None, outpath='', dpi=300):
         ax.figure.savefig(outpath, dpi=dpi)
 
 
-def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_numbers=True, title='', subtitle='', dpi=300):
+def show_embedding(embeddings, labels=None, aspect='auto', outpath='', show_numbers=False, title='', subtitle='', dpi=300):
     if embeddings.shape[1] != 2:
         raise Exception(
             "cannot visualize embeddings with dimension other than 2")
@@ -84,7 +83,7 @@ def show_embedding(embeddings, labels=None, aspect='equal', outpath='', show_num
         plt.savefig(outpath, facecolor='white', transparent=False, dpi=dpi)
 
 
-def show_graph_in_data(data, graph, labels=None, aspect='equal', outpath='', show_numbers=True, title='', dpi=300):
+def show_graph_in_data(data, graph, labels=None, aspect='auto', outpath='', show_numbers=False, title='', dpi=300):
     if data.shape[1] != 2:
         raise Exception(
             "cannot visualize data with dimension other than 2")

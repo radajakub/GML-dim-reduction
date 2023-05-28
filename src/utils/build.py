@@ -1,227 +1,259 @@
 from sklearn import metrics
 import networkx as nx
 import numpy as np
-from utils import weights, features, visualization
+from utils import weights, features
 from itertools import combinations
 
 
-def multiply_edges(graph, mult):
-    for _, _, d in graph.edges(data=True):
-        d['weight'] *= mult
+class GraphBuilder:
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+        self.weight_fun = weight_fun
+        self.feature_fun = feature_fun
+        self.graph = nx.Graph()
+        self.dists = None
+
+    def compute_features(self, data):
+        if self.feature_fun != None:
+            self.feature_fun(data, self.graph)
+
+    def add_nodes(self, data):
+        self.graph.add_nodes_from(np.arange(data.shape[0]))
+
+    def add_edge(self, u, v, val):
+        if val == np.inf or val == 0:
+            raise Exception("Distance between nodes is either 0 or inf")
+
+        if self.weight_fun is not None:
+            self.graph.add_edge(u, v, weight=self.weight_fun(val))
+        else:
+            self.graph.add_edge(u, v)
+
+    def scale_edge_weights(self, scale):
+        for _, _, d in self.graph.edges(data=True):
+            d['weight'] *= scale
+
+    def build(data):
+        raise NotImplementedError()
 
 
-def build_graph_cheapest(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
-    # compute distances between the points
-    dists = metrics.pairwise_distances(data)
+class CheapestBuilder(GraphBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+        super().__init__(weight_fun, feature_fun)
 
-    # build graph
-    g = nx.Graph()
-    g.add_nodes_from(np.arange(dists.shape[0]))
+    def build(self, data):
+        # compute distances between the points
+        self.dists = metrics.pairwise_distances(data)
 
-    triu_idx = np.triu_indices(dists.shape[0])
-    dists[triu_idx] = np.inf
+        # build graph
+        self.add_nodes(data)
 
-    min_indices = np.unravel_index(np.argsort(
-        dists, axis=None), dists.shape)
+        triu_idx = np.triu_indices(self.dists.shape[0])
+        self.dists[triu_idx] = np.inf
 
-    for u, v in zip(*min_indices):
-        dist = dists[u, v]
+        min_indices = np.unravel_index(np.argsort(
+            self.dists, axis=None), self.dists.shape)
 
-        if dist == np.inf:
-            raise Exception("All edges added and graph is still incomplete??")
-        elif dist == 0:
-            raise Exception("A pair of nodes with zero distance occurred")
+        for u, v in zip(*min_indices):
+            dist = self.dists[u, v]
 
-        g.add_edge(u, v, weight=weight_fun(dist)
-                   if weight_fun is not None else 0)
+            self.add_edge(u, v, dist)
 
-        if nx.is_connected(g):
-            break
+            if nx.is_connected(self.graph):
+                break
 
-    # add node features to graph
-    if feature_fun is not None:
-        feature_fun(data, g)
-
-    return g
+        # add node features to graph
+        self.compute_features(data)
 
 
-def build_graph_full(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
-    dists = metrics.pairwise_distances(data)
+class FullBuilder(GraphBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+        super().__init__(weight_fun, feature_fun)
 
-    g = nx.Graph()
-    g.add_nodes_from(np.arange(dists.shape[0]))
+    def build(self, data):
+        self.dists = metrics.pairwise_distances(data)
 
-    for u, v in zip(*np.triu_indices(dists.shape[0], k=1)):
-        dist = dists[u, v]
+        self.add_nodes(data)
 
-        if dist == 0:
-            raise Exception("A pair of nodes with zero distance occurred")
+        for u, v in zip(*np.triu_indices(self.dists.shape[0], k=1)):
+            dist = self.dists[u, v]
 
-        g.add_edge(u, v, weight=weight_fun(dist)
-                   if weight_fun is not None else 0)
+            self.add_edge(u, v, dist)
 
-    # add node features to graph
-    if feature_fun is not None:
-        feature_fun(data, g)
-
-    return g
+        # add node features to graph
+        self.compute_features(data)
 
 
-def build_graph_spanning(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
-    full = build_graph_full(data, weight_fun=weight_fun,
-                            feature_fun=feature_fun)
-    # multiply all edges by -1
-    multiply_edges(full, -1)
+class SpanningTreeBuilder(GraphBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+        super().__init__(weight_fun, feature_fun)
 
-    g = nx.minimum_spanning_tree(full)
+    def build(self, data):
+        full = FullBuilder(weight_fun=self.weight_fun,
+                           feature_fun=self.feature_fun)
+        full.build(data)
+        full.scale_edge_weights(-1)
 
-    # multiply all edges by -1
-    multiply_edges(g, -1)
-
-    return g
-
-
-def build_graph_nn(data, weight_fun=weights.reciprocal, knn=1):
-    v_count = data.shape[0]
-
-    # ensure that knn is not bigger than number of remaining nodes
-    knn = min(knn, v_count - 1)
-
-    dists = metrics.pairwise_distances(
-        data) + np.diag(np.repeat(np.inf, v_count))
-
-    # indices to first nearest neighbor of each point
-    nns = np.argsort(dists, axis=-1)
-
-    g = nx.Graph()
-    g.add_nodes_from(np.arange(v_count))
-
-    # connect nearest neighbors
-    for u in range(v_count):
-        for i in range(knn):
-            v = nns[u, i]
-            dist = dists[u, v]
-
-            if dist == 0:
-                raise Exception("A pair of nodes with zero distance occurred")
-
-            g.add_edge(u, v, weight=weight_fun(dist)
-                       if weight_fun is not None else 0)
-
-    return g, dists
+        self.graph = nx.minimum_spanning_tree(full.graph)
+        self.scale_edge_weights(-1)
+        self.dists = full.dists
 
 
-def build_graph_nn_cheapest(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=1):
-    g, dists = build_graph_nn(data, weight_fun=weight_fun, knn=knn)
+class NNBuilder(GraphBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, knn=1):
+        super().__init__(weight_fun, feature_fun)
+        self.knn = knn
 
-    # find connected groups of nodes
-    connected_components = list(nx.connected_components(g))
-    connected_components_count = len(connected_components)
+    def build(self, data):
+        v_count = data.shape[0]
 
-    # go through all component combinations
-    for i in range(connected_components_count):
-        compi = list(connected_components[i])
-        for j in range(i + 1, connected_components_count):
-            compj = list(connected_components[j])
-            # create truncated distance matrix only of the components
-            pair_dists = dists[compi, :][:, compj]
-            # find index of minimum element
-            min_idx = np.unravel_index(
-                np.argmin(pair_dists, axis=None), pair_dists.shape)
-            # add corresponding edge to the graph
-            g.add_edge(compi[min_idx[0]], compj[min_idx[1]], weight=weight_fun(pair_dists[min_idx])
-                       if weight_fun is not None else 0)
+        if self.knn > v_count - 1:
+            raise Exception("knn cannot be higher than number of nodes - 1")
 
-    # add node features to graph
-    if feature_fun is not None:
-        feature_fun(data, g)
+        self.dists = metrics.pairwise_distances(
+            data) + np.diag(np.repeat(np.inf, v_count))
 
-    return g
+        # indices to first nearest neighbor of each point
+        nns = np.argsort(self.dists, axis=-1)
+
+        self.add_nodes(data)
+
+        # connect nearest neighbors
+        for u in range(v_count):
+            for i in range(self.knn):
+                v = nns[u, i]
+                dist = self.dists[u, v]
+
+                self.add_edge(u, v, dist)
 
 
-def build_graph_nn_spanning(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=1):
-    # build k nearest neighbors
-    g, _ = build_graph_nn(data, weight_fun=weight_fun, knn=knn)
+class CheapestNNBuilder(NNBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, knn=1):
+        super().__init__(weight_fun, feature_fun, knn)
 
-    # build spanning tree of a full graph
-    spanning = build_graph_spanning(
-        data, weight_fun=weight_fun, feature_fun=feature_fun)
+    def build(self, data):
+        # build nn graph
+        super().build(data)
 
-    # compute membership in connected components
-    cc_membership = np.zeros(data.shape[0], dtype=np.int32)
-    for i, cc in enumerate(nx.connected_components(g)):
-        for u in cc:
-            cc_membership[u] = i
-
-    # add edges from spanning tree if the two nodes are in different components
-    for u, v, w in spanning.edges(data=True):
-        if cc_membership[u] != cc_membership[v]:
-            g.add_edge(u, v, **w)
-
-    # add node features to graph
-    if feature_fun is not None:
-        feature_fun(data, g)
-
-    return g
-
-def build_graph_hierarchical(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
-    g, dists = build_graph_nn(data, weight_fun=weight_fun, knn=1)
-    while not nx.is_connected(g):
-        connected_components = list(nx.connected_components(g))
+        # find connected groups of nodes
+        connected_components = list(nx.connected_components(self.graph))
         connected_components_count = len(connected_components)
+
+        # go through all component combinations
         for i in range(connected_components_count):
             compi = list(connected_components[i])
-            min_dist_dict = {}
-            min_idx_dict = {}
-            for j in range(connected_components_count):
-                if i==j:
-                    continue
+            for j in range(i + 1, connected_components_count):
                 compj = list(connected_components[j])
-                pair_dists = dists[compi, :][:, compj]
-                min_dist_dict[j] = np.min(pair_dists)
-                min_idx_dict[j] = np.unravel_index(
+                # create truncated distance matrix only of the components
+                pair_dists = self.dists[compi, :][:, compj]
+                # find index of minimum element
+                min_idx = np.unravel_index(
                     np.argmin(pair_dists, axis=None), pair_dists.shape)
-            closest_cluster_id = min(min_dist_dict, key=min_dist_dict.get)
-            closest_cluster_dist = min(min_dist_dict.values())
-            closest_cluster = list(connected_components[closest_cluster_id])
-            g.add_edge(compi[min_idx_dict[closest_cluster_id][0]], closest_cluster[min_idx_dict[closest_cluster_id][1]],
-                            weight=weight_fun(closest_cluster_dist) if weight_fun is not None else 0)
-    
-    if feature_fun is not None:
-        feature_fun(data, g)
+                # add corresponding edge to the graph
+                self.add_edge(compi[min_idx[0]],
+                              compj[min_idx[1]], pair_dists[min_idx])
 
-    return g
+        self.compute_features(data)
 
-def build_graph_hierarchical_cluster(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
-    g, dists = build_graph_nn(data, weight_fun=weight_fun, knn=1)
-    connected_components = list(nx.connected_components(g))
-    for component in connected_components:
-        edges_to_add = list(combinations(list(component), r=2))
-        for edge in edges_to_add:
-            weight = weight_fun(dists[edge[0], edge[1]]) if weight_fun is not None else 0
-            g.add_edge(edge[0], edge[1], weight=weight)
-    while not nx.is_connected(g):
-        connected_components = list(nx.connected_components(g))
-        connected_components_count = len(connected_components)
-        for i in range(connected_components_count):
-            compi = list(connected_components[i])
-            min_dist_dict = {}
-            min_idx_dict = {}
-            for j in range(connected_components_count):
-                if i==j:
-                    continue
-                compj = list(connected_components[j])
-                pair_dists = dists[compi, :][:, compj]
-                min_dist_dict[j] = np.min(pair_dists)
-                min_idx_dict[j] = np.unravel_index(
-                    np.argmin(pair_dists, axis=None), pair_dists.shape)
-            closest_cluster_id = min(min_dist_dict, key=min_dist_dict.get)
-            closest_cluster_dist = min(min_dist_dict.values())
-            closest_cluster = list(connected_components[closest_cluster_id])
-            g.add_edge(compi[min_idx_dict[closest_cluster_id][0]], closest_cluster[min_idx_dict[closest_cluster_id][1]],
-                            weight=weight_fun(closest_cluster_dist) if weight_fun is not None else 0)
-    
-    if feature_fun is not None:
-        feature_fun(data, g)
 
-    return g
+class SpanningNNBuilder(NNBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, knn=1):
+        super().__init__(weight_fun, feature_fun, knn)
+
+    def build(self, data):
+        # build nn graph
+        super().build(data)
+
+        spanning = SpanningTreeBuilder(
+            weight_fun=self.weight_fun, feature_fun=self.feature_fun)
+        spanning.build(data)
+
+        # compute membership in connected components
+        cc_membership = np.zeros(data.shape[0], dtype=np.int32)
+        for i, cc in enumerate(nx.connected_components(self.graph)):
+            for u in cc:
+                cc_membership[u] = i
+
+        # add edges from spanning tree if the two nodes are in different components
+        for u, v, w in spanning.graph.edges(data=True):
+            if cc_membership[u] != cc_membership[v]:
+                self.graph.add_edge(u, v, **w)
+
+        self.compute_features(data)
+
+
+class HierarchicalBuilder(GraphBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+        super().__init__(weight_fun, feature_fun)
+
+    def build(self, data):
+        nn_builder = NNBuilder(weight_fun=self.weight_fun,
+                               feature_fun=None, knn=1)
+        nn_builder.build(data)
+        self.graph = nn_builder.graph
+
+        while not nx.is_connected(self.graph):
+            connected_components = list(nx.connected_components(self.graph))
+            connected_components_count = len(connected_components)
+            for i in range(connected_components_count):
+                compi = list(connected_components[i])
+                min_dist_dict = {}
+                min_idx_dict = {}
+                for j in range(connected_components_count):
+                    if i == j:
+                        continue
+                    compj = list(connected_components[j])
+                    pair_dists = nn_builder.dists[compi, :][:, compj]
+                    min_dist_dict[j] = np.min(pair_dists)
+                    min_idx_dict[j] = np.unravel_index(
+                        np.argmin(pair_dists, axis=None), pair_dists.shape)
+                closest_cluster_id = min(min_dist_dict, key=min_dist_dict.get)
+                closest_cluster_dist = min(min_dist_dict.values())
+                closest_cluster = list(
+                    connected_components[closest_cluster_id])
+                self.add_edge(compi[min_idx_dict[closest_cluster_id][0]],
+                              closest_cluster[min_idx_dict[closest_cluster_id][1]], closest_cluster_dist)
+
+        self.compute_features(data)
+
+
+class HierarchicalClusterBuilder(GraphBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+        super().__init__(weight_fun, feature_fun)
+
+    def build(self, data):
+        nn_builder = NNBuilder(weight_fun=self.weight_fun,
+                               feature_fun=None, knn=1)
+        nn_builder.build(data)
+
+        self.graph = nn_builder.graph
+        connected_components = list(nx.connected_components(self.graph))
+
+        for component in connected_components:
+            edges_to_add = list(combinations(list(component), r=2))
+            for edge in edges_to_add:
+                self.add_edge(edge[0], edge[1],
+                              nn_builder.dists[edge[0], edge[1]])
+
+        while not nx.is_connected(self.graph):
+            connected_components = list(nx.connected_components(self.graph))
+            connected_components_count = len(connected_components)
+            for i in range(connected_components_count):
+                compi = list(connected_components[i])
+                min_dist_dict = {}
+                min_idx_dict = {}
+                for j in range(connected_components_count):
+                    if i == j:
+                        continue
+                    compj = list(connected_components[j])
+                    pair_dists = nn_builder.dists[compi, :][:, compj]
+                    min_dist_dict[j] = np.min(pair_dists)
+                    min_idx_dict[j] = np.unravel_index(
+                        np.argmin(pair_dists, axis=None), pair_dists.shape)
+                closest_cluster_id = min(min_dist_dict, key=min_dist_dict.get)
+                closest_cluster_dist = min(min_dist_dict.values())
+                closest_cluster = list(
+                    connected_components[closest_cluster_id])
+                self.add_edge(compi[min_idx_dict[closest_cluster_id][0]],
+                              closest_cluster[min_idx_dict[closest_cluster_id][1]], closest_cluster_dist)
+
+        self.compute_features(data)

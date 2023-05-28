@@ -1,4 +1,7 @@
-from enum import Enum, auto
+from sklearn.metrics import classification_report
+from sklearn.cluster import KMeans
+from sklearn.manifold import trustworthiness
+import networkx as nx
 from utils.features import FEATURE_KEY
 from node2vec import Node2Vec
 import numpy as np
@@ -12,102 +15,162 @@ from stellargraph.mapper import GraphSAGELinkGenerator, GraphSAGENodeGenerator
 from stellargraph.layer import GraphSAGE, link_classification
 from stellargraph.data import UnsupervisedSampler
 from tensorflow import keras
-import networkx as nx
 
 
-class EmbedAlgs(Enum):
-    node2vec = auto(),
-    watchyourstep = auto(),
-    graphsage = auto()
+class Embedder:
+    def __init__(self, graph_builder, embedding_dim=2, seed=0):
+        self.builder = graph_builder
+        self.dims = embedding_dim
+        self.seed = seed
+        self.data = None
+        self.embeddings = None
+
+    def embed(self, data):
+        return data
+
+    def trustworthiness(self):
+        return trustworthiness(self.data, self.embeddings)
+
+    def eval_kmean_classif_report_embed_data(self, labels):
+        '''
+        Evaluates the embedding of the data using the given algorithm and labels
+        with the KMeans clustering algorithm
+        '''
+        # we could also compare the kmeans score before and after the embedding
+        _, counts = np.unique(labels, return_counts=True)
+        kmeans_embed = KMeans(n_clusters=len(
+            counts), random_state=0).fit(self.embeddings)
+        # compute classification error between kmeans.labels and real labels
+        ret = classification_report(labels, kmeans_embed.labels_)
+        return ret
 
 
-def embed_graph_node2vec(graph, dims=2, walk_length=100, num_walks=10, seed=0, window=10, min_count=1, batch_words=4):
-    # compute embeddings
-    # num_walks ... number of walks PER NODE
-    # p ... return hyperparameter (default 1)
-    # q ... inout parameter (default 1)
-    # quiet ... turn off output
-    node2vec = Node2Vec(graph, dimensions=dims,
-                        walk_length=walk_length, num_walks=num_walks, seed=seed, quiet=False)
-    # window ... maximum distance between current and predicted word withing a sentence (default 5)
-    # min_count ... ignore words with frequency less then min_count (default 5)
-    # negative ... number of negative samples (default 5)
-    # alpha ... initial learning rate
-    # min_alpha ... learning rate will drop linearly to this value
-    # epochs ... number of epochs (default 5)
-    # batch_words ...(deafult 10000)
-    # more at https://radimrehurek.com/gensim/models/word2vec.html
-    model = node2vec.fit(window=window, min_count=min_count,
-                         batch_words=batch_words)
+class Node2VecEmbedder(Embedder):
+    def __init__(self, graph_builder, embedding_dim=2, seed=0, walk_length=100, num_walks=10, window=10, min_count=1, batch_words=4):
+        super().__init__(graph_builder, embedding_dim, seed)
+        self.walk_length = walk_length
+        self.num_walks = num_walks
+        self.window = window
+        self.min_count = min_count
+        self.batch_words = batch_words
 
-    # put all embeddings to np matrix while preserving original order
-    embeddings = np.vstack(model.wv[sorted(w for w in model.wv.key_to_index)])
+    def embed(self, data):
+        self.data = data
+        self.builder.build(data)
+        node2vec = Node2Vec(self.builder.graph, dimensions=self.dims, walk_length=self.walk_length,
+                            num_walks=self.num_walks, seed=self.seed, quiet=True)
+        model = node2vec.fit(
+            window=self.window, min_count=self.min_count, batch_words=self.batch_words)
 
-    return embeddings
+        self.embeddings = np.vstack(
+            model.wv[sorted(w for w in model.wv.key_to_index)])
 
 
-def embed_graph_wys(graph, dims=2, adjacency_powers=10, num_walks=150, attention_regularization=0.5, batch_size=12, epochs=100):
-    stellar_graph = StellarGraph.from_networkx(graph)
-    generator = AdjacencyPowerGenerator(
-        stellar_graph, num_powers=adjacency_powers)
-    wys = WatchYourStep(
-        generator,
-        num_walks=num_walks,
-        embedding_dimension=dims,
-        attention_regularizer=regularizers.l2(attention_regularization),
-    )
-    x_in, x_out = wys.in_out_tensors()
-    model = Model(inputs=x_in, outputs=x_out)
-    model.compile(loss=graph_log_likelihood,
-                  optimizer=tf.keras.optimizers.Adam(1e-3))
-    train_gen = generator.flow(batch_size=batch_size, num_parallel_calls=1)
+class WatchYourStepEmbedder(Embedder):
+    def __init__(self, graph_builder, embedding_dim=2, seed=0, adjacency_powers=10, num_walks=150, attention_regularization=0.5, batch_size=12, epochs=100):
+        super().__init__(graph_builder, embedding_dim, seed)
+        self.adjacency_powers = adjacency_powers
+        self.num_walks = num_walks
+        self.attention_regularization = attention_regularization
+        self.batch_size = batch_size
+        self.epochs = epochs
 
-    _ = model.fit(
-        train_gen, epochs=epochs, verbose=0, steps_per_epoch=int(len(stellar_graph.nodes()) // batch_size)
-    )
-    return wys.embeddings()
+    def embed(self, data):
+        self.data = data
+
+        self.builder.build(data)
+        stellar_graph = StellarGraph.from_networkx(self.builder.graph)
+
+        generator = AdjacencyPowerGenerator(
+            stellar_graph, num_powers=self.adjacency_powers)
+        wys = WatchYourStep(
+            generator,
+            num_walks=self.num_walks,
+            embedding_dimension=self.dims,
+            attention_regularizer=regularizers.l2(
+                self.attention_regularization),
+        )
+        x_in, x_out = wys.in_out_tensors()
+        model = Model(inputs=x_in, outputs=x_out)
+        model.compile(loss=graph_log_likelihood,
+                      optimizer=tf.keras.optimizers.Adam(1e-3))
+        train_gen = generator.flow(
+            batch_size=self.batch_size, num_parallel_calls=1)
+
+        model.fit(
+            train_gen, epochs=self.epochs, verbose=0, steps_per_epoch=int(len(stellar_graph.nodes()) // self.batch_size)
+        )
+
+        self.embeddings = wys.embeddings()
 
 
-# num_samples ... number of 1-hop, 2-hop, ..., n-hop samples
-def embed_graphsage(graph, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[10, 2], dropout=0.05, bias=True, loss=None):
-    sgraph = StellarGraph.from_networkx(graph, node_features=FEATURE_KEY)
-    nodes = list(sgraph.nodes())
-    unsupervised_samples = UnsupervisedSampler(
-        sgraph, nodes=nodes, length=walk_length, number_of_walks=num_walks)
-    generator = GraphSAGELinkGenerator(
-        sgraph, batch_size, num_samples, weighted=True)
-    train_gen = generator.flow(unsupervised_samples)
-    graphsage = GraphSAGE(
-        layer_sizes=layer_sizes, generator=generator, bias=bias, dropout=dropout, normalize="l2"
-    )
-    x_inp, x_out = graphsage.in_out_tensors()
-    prediction = link_classification(
-        output_dim=1, output_act="relu", edge_embedding_method="ip"
-    )(x_out)
-    model = keras.Model(inputs=x_inp, outputs=prediction)
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=1e-3),
-        loss=loss if loss != None else keras.losses.binary_crossentropy,
-        metrics=[keras.metrics.binary_accuracy],
-    )
+class GraphSAGEEmbedder(Embedder):
+    def __init__(self, graph_builder, embedding_dim=2, seed=0, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[20, 2], dropout=0.05, bias=False, loss=keras.losses.binary_crossentropy):
+        super().__init__(graph_builder, embedding_dim, seed)
+        self.num_walks = num_walks
+        self.walk_length = walk_length
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.num_samples = num_samples
+        self.layer_sizes = layer_sizes
+        layer_sizes[-1] = embedding_dim
+        self.dropout = dropout
+        self.bias = bias
+        self.loss = loss
 
-    history = model.fit(
-        train_gen,
-        epochs=epochs,
-        verbose=1,
-        use_multiprocessing=False,
-        workers=1,
-        shuffle=True,
-    )
+    def embed(self, data):
+        self.data = data
+        self.builder.build(data)
+        stellar_graph = StellarGraph.from_networkx(
+            self.builder.graph, node_features=FEATURE_KEY)
+        nodes = list(stellar_graph.nodes())
 
-    x_inp_src = x_inp[0::2]
-    x_out_src = x_out[0]
-    embedding_model = keras.Model(inputs=x_inp_src, outputs=x_out_src)
-    node_ids = np.arange(len(nodes))
-    node_gen = GraphSAGENodeGenerator(
-        sgraph, batch_size, num_samples, weighted=True).flow(node_ids)
-    
-    return embedding_model.predict(node_gen, workers=1, verbose=1)
+        unsupervised_samples = UnsupervisedSampler(
+            stellar_graph, nodes=nodes, length=self.walk_length, number_of_walks=self.num_walks)
+        generator = GraphSAGELinkGenerator(
+            stellar_graph, self.batch_size, self.num_samples, weighted=True)
+        train_gen = generator.flow(unsupervised_samples)
+        graphsage = GraphSAGE(
+            layer_sizes=self.layer_sizes, generator=generator, bias=self.bias, dropout=self.dropout, normalize="l2"
+        )
+        x_inp, x_out = graphsage.in_out_tensors()
+        prediction = link_classification(
+            output_dim=1, output_act="relu", edge_embedding_method="ip"
+        )(x_out)
+        model = keras.Model(inputs=x_inp, outputs=prediction)
+        model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate=1e-3),
+            loss=self.loss,
+            metrics=[keras.metrics.binary_accuracy],
+        )
 
-def embed_spring(graph):
-    return np.array(list(nx.spring_layout(graph, seed=42).values()))
+        model.fit(
+            train_gen,
+            epochs=self.epochs,
+            verbose=1,
+            use_multiprocessing=False,
+            workers=1,
+            shuffle=True,
+        )
+
+        x_inp_src = x_inp[0::2]
+        x_out_src = x_out[0]
+        embedding_model = keras.Model(inputs=x_inp_src, outputs=x_out_src)
+        node_ids = np.arange(len(nodes))
+        node_gen = GraphSAGENodeGenerator(
+            stellar_graph, self.batch_size, self.num_samples, weighted=True).flow(node_ids)
+
+        self.embeddings = embedding_model.predict(
+            node_gen, workers=1, verbose=1)
+
+
+class SpringEmbedder(Embedder):
+    def __init__(self, graph_builder, seed=0):
+        super().__init__(graph_builder, seed=seed)
+
+    def embed(self, data):
+        self.data = data
+        self.builder.build(data)
+
+        self.embeddings = np.array(
+            list(nx.spring_layout(self.builder.graph, seed=self.seed).values()))

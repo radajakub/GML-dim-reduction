@@ -2,7 +2,6 @@ import numpy as np
 from sklearn import preprocessing
 
 
-# TODO what if two same data points have different labels?
 def remove_duplicities(data, labels, shuffle=True, normalize=True):
     _, unique_indices = np.unique(data, return_index=True, axis=0)
     data, labels = data[unique_indices, :], labels[unique_indices]
