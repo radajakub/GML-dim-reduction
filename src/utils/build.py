@@ -2,6 +2,7 @@ from sklearn import metrics
 import networkx as nx
 import numpy as np
 from utils import weights, features, visualization
+from itertools import combinations
 
 
 def multiply_edges(graph, mult):
@@ -158,6 +159,68 @@ def build_graph_nn_spanning(data, weight_fun=weights.reciprocal, feature_fun=fea
             g.add_edge(u, v, **w)
 
     # add node features to graph
+    if feature_fun is not None:
+        feature_fun(data, g)
+
+    return g
+
+def build_graph_hierarchical(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
+    g, dists = build_graph_nn(data, weight_fun=weight_fun, knn=1)
+    while not nx.is_connected(g):
+        connected_components = list(nx.connected_components(g))
+        connected_components_count = len(connected_components)
+        for i in range(connected_components_count):
+            compi = list(connected_components[i])
+            min_dist_dict = {}
+            min_idx_dict = {}
+            for j in range(connected_components_count):
+                if i==j:
+                    continue
+                compj = list(connected_components[j])
+                pair_dists = dists[compi, :][:, compj]
+                min_dist_dict[j] = np.min(pair_dists)
+                min_idx_dict[j] = np.unravel_index(
+                    np.argmin(pair_dists, axis=None), pair_dists.shape)
+            closest_cluster_id = min(min_dist_dict, key=min_dist_dict.get)
+            closest_cluster_dist = min(min_dist_dict.values())
+            closest_cluster = list(connected_components[closest_cluster_id])
+            g.add_edge(compi[min_idx_dict[closest_cluster_id][0]], closest_cluster[min_idx_dict[closest_cluster_id][1]],
+                            weight=weight_fun(closest_cluster_dist) if weight_fun is not None else 0)
+    
+    if feature_fun is not None:
+        feature_fun(data, g)
+
+    return g
+
+def build_graph_hierarchical_cluster(data, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, knn=0):
+    g, dists = build_graph_nn(data, weight_fun=weight_fun, knn=1)
+    connected_components = list(nx.connected_components(g))
+    for component in connected_components:
+        edges_to_add = list(combinations(list(component), r=2))
+        for edge in edges_to_add:
+            weight = weight_fun(dists[edge[0], edge[1]]) if weight_fun is not None else 0
+            g.add_edge(edge[0], edge[1], weight=weight)
+    while not nx.is_connected(g):
+        connected_components = list(nx.connected_components(g))
+        connected_components_count = len(connected_components)
+        for i in range(connected_components_count):
+            compi = list(connected_components[i])
+            min_dist_dict = {}
+            min_idx_dict = {}
+            for j in range(connected_components_count):
+                if i==j:
+                    continue
+                compj = list(connected_components[j])
+                pair_dists = dists[compi, :][:, compj]
+                min_dist_dict[j] = np.min(pair_dists)
+                min_idx_dict[j] = np.unravel_index(
+                    np.argmin(pair_dists, axis=None), pair_dists.shape)
+            closest_cluster_id = min(min_dist_dict, key=min_dist_dict.get)
+            closest_cluster_dist = min(min_dist_dict.values())
+            closest_cluster = list(connected_components[closest_cluster_id])
+            g.add_edge(compi[min_idx_dict[closest_cluster_id][0]], closest_cluster[min_idx_dict[closest_cluster_id][1]],
+                            weight=weight_fun(closest_cluster_dist) if weight_fun is not None else 0)
+    
     if feature_fun is not None:
         feature_fun(data, g)
 

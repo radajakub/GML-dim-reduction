@@ -12,6 +12,7 @@ from stellargraph.mapper import GraphSAGELinkGenerator, GraphSAGENodeGenerator
 from stellargraph.layer import GraphSAGE, link_classification
 from stellargraph.data import UnsupervisedSampler
 from tensorflow import keras
+import networkx as nx
 
 
 class EmbedAlgs(Enum):
@@ -68,7 +69,7 @@ def embed_graph_wys(graph, dims=2, adjacency_powers=10, num_walks=150, attention
 
 
 # num_samples ... number of 1-hop, 2-hop, ..., n-hop samples
-def embed_graphsage(graph, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[10, 2], dropout=0.05, bias=True):
+def embed_graphsage(graph, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[10, 2], dropout=0.05, bias=True, loss=None):
     sgraph = StellarGraph.from_networkx(graph, node_features=FEATURE_KEY)
     nodes = list(sgraph.nodes())
     unsupervised_samples = UnsupervisedSampler(
@@ -86,7 +87,7 @@ def embed_graphsage(graph, num_walks=10, walk_length=10, batch_size=50, epochs=4
     model = keras.Model(inputs=x_inp, outputs=prediction)
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=1e-3),
-        loss=keras.losses.binary_crossentropy,
+        loss=loss if loss != None else keras.losses.binary_crossentropy,
         metrics=[keras.metrics.binary_accuracy],
     )
 
@@ -107,3 +108,6 @@ def embed_graphsage(graph, num_walks=10, walk_length=10, batch_size=50, epochs=4
         sgraph, batch_size, num_samples, weighted=True).flow(node_ids)
     
     return embedding_model.predict(node_gen, workers=1, verbose=1)
+
+def embed_spring(graph):
+    return np.array(list(nx.spring_layout(graph, seed=42).values()))

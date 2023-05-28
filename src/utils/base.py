@@ -10,7 +10,25 @@ import numpy as np
 #   - num_walks, walk_length, batch_size, epochs, num_samples(samples per leare, i.e. a list of k numbers), layer_sizes(list of sizes of layers, same length as num_samples), dropout, bias
 
 
-def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun=weights.reciprocal, feature_fun=features.feature_coords, dims=2, walk_length=100, num_walks=10, adjacency_powers=10, attention_regularization=0.5, batch_size=12, epochs=100, seed=0, num_samples=[10, 5], layer_sizes=[10, 2], dropout=0.0, bias=True, knn=1):
+def embed_data(data, 
+               algorithm, 
+               build_fun=build.build_graph_cheapest, 
+               weight_fun=weights.reciprocal, 
+               feature_fun=features.feature_coords, 
+               dims=2, 
+               walk_length=100, 
+               num_walks=10, 
+               adjacency_powers=10, 
+               attention_regularization=0.5, 
+               batch_size=12, 
+               epochs=100, 
+               seed=0, 
+               num_samples=[10, 5], 
+               layer_sizes=[10, 2], 
+               dropout=0.0, 
+               bias=True, 
+               knn=1,
+               loss=None):
 
     graph = build_fun(data, weight_fun=weight_fun,
                       feature_fun=feature_fun, knn=knn)
@@ -23,7 +41,7 @@ def embed_data(data, algorithm, build_fun=build.build_graph_cheapest, weight_fun
                                                attention_regularization=attention_regularization, batch_size=batch_size, epochs=epochs)
     elif algorithm is EmbedAlgs.graphsage:
         embeddings = embedding.embed_graphsage(graph, num_walks=num_walks, walk_length=walk_length, batch_size=batch_size,
-                                               epochs=epochs, num_samples=num_samples, layer_sizes=layer_sizes, dropout=dropout, bias=bias)
+                                               epochs=epochs, num_samples=num_samples, layer_sizes=layer_sizes, dropout=dropout, bias=bias, loss=loss)
     else:
         raise Exception("You have to select an embedding algorithm")
 
