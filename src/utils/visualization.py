@@ -3,9 +3,6 @@ import matplotlib
 import networkx as nx
 
 
-matplotlib.rcParams['figure.figsize'] = [20, 5]
-
-
 def show_data(data, graph=None, labels=None, aspect='auto', square=False, outpath='', show_numbers=False, title='', dpi=300):
     if data.shape[1] > 3 and data.shape[1] < 2:
         raise Exception(

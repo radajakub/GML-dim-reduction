@@ -18,18 +18,16 @@ from tensorflow import keras
 
 
 class Embedder:
-    def __init__(self, graph_builder, embedding_dim=2, seed=0):
-        self.builder = graph_builder
+    def __init__(self, embedding_dim=2, seed=0):
         self.dims = embedding_dim
         self.seed = seed
-        self.data = None
         self.embeddings = None
 
-    def embed(self, data, build_graph=True):
-        return data
+    def embed(self, graph):
+        raise NotImplementedError("embed method is not implemented")
 
-    def trustworthiness(self):
-        return trustworthiness(self.data, self.embeddings)
+    def trustworthiness(self, data):
+        return trustworthiness(data, self.embeddings)
 
     def eval_kmean_classif_report_embed_data(self, labels):
         '''
@@ -46,21 +44,16 @@ class Embedder:
 
 
 class Node2VecEmbedder(Embedder):
-    def __init__(self, graph_builder, embedding_dim=2, seed=0, walk_length=100, num_walks=10, window=10, min_count=1, batch_words=4):
-        super().__init__(graph_builder, embedding_dim, seed)
+    def __init__(self, embedding_dim=2, seed=0, walk_length=100, num_walks=10, window=10, min_count=1, batch_words=4):
+        super().__init__(embedding_dim, seed)
         self.walk_length = walk_length
         self.num_walks = num_walks
         self.window = window
         self.min_count = min_count
         self.batch_words = batch_words
 
-    def embed(self, data, build_graph=True):
-        self.data = data
-
-        if build_graph or self.builder.graph is None:
-            self.builder.build(data)
-
-        node2vec = Node2Vec(self.builder.graph, dimensions=self.dims, walk_length=self.walk_length,
+    def embed(self, graph):
+        node2vec = Node2Vec(graph, dimensions=self.dims, walk_length=self.walk_length,
                             num_walks=self.num_walks, seed=self.seed, quiet=False)
         model = node2vec.fit(
             window=self.window, min_count=self.min_count, batch_words=self.batch_words)
@@ -71,21 +64,17 @@ class Node2VecEmbedder(Embedder):
 
 # Embedding dim must be even!!
 class WatchYourStepEmbedder(Embedder):
-    def __init__(self, graph_builder, embedding_dim=2, seed=0, adjacency_powers=10, num_walks=150, attention_regularization=0.5, batch_size=12, epochs=100):
-        super().__init__(graph_builder, embedding_dim, seed)
+    def __init__(self, embedding_dim=2, seed=0, adjacency_powers=10, num_walks=150, attention_regularization=0.5, batch_size=12, epochs=100):
+        super().__init__(embedding_dim, seed)
         self.adjacency_powers = adjacency_powers
         self.num_walks = num_walks
         self.attention_regularization = attention_regularization
         self.batch_size = batch_size
         self.epochs = epochs
 
-    def embed(self, data, build_graph=True):
-        self.data = data
-
-        if build_graph or self.builder.graph is None:
-            self.builder.build(data)
-
-        stellar_graph = StellarGraph.from_networkx(self.builder.graph)
+    def embed(self, graph):
+        self.batch_size = min()
+        stellar_graph = StellarGraph.from_networkx(graph)
 
         generator = AdjacencyPowerGenerator(
             stellar_graph, num_powers=self.adjacency_powers)
@@ -95,6 +84,7 @@ class WatchYourStepEmbedder(Embedder):
             embedding_dimension=self.dims,
             attention_regularizer=regularizers.l2(
                 self.attention_regularization),
+            seed=self.seed,
         )
         x_in, x_out = wys.in_out_tensors()
         model = Model(inputs=x_in, outputs=x_out)
@@ -111,8 +101,8 @@ class WatchYourStepEmbedder(Embedder):
 
 
 class GraphSAGEEmbedder(Embedder):
-    def __init__(self, graph_builder, embedding_dim=2, seed=0, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[20, 2], dropout=0.05, bias=False, loss=keras.losses.binary_crossentropy, normalize=None):
-        super().__init__(graph_builder, embedding_dim, seed)
+    def __init__(self, embedding_dim=2, seed=0, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[20, 2], dropout=0.05, bias=False, loss=keras.losses.binary_crossentropy, normalize=None):
+        super().__init__(embedding_dim, seed)
         self.num_walks = num_walks
         self.walk_length = walk_length
         self.batch_size = batch_size
@@ -125,14 +115,9 @@ class GraphSAGEEmbedder(Embedder):
         self.loss = loss
         self.normalize = normalize
 
-    def embed(self, data, build_graph=True):
-        self.data = data
-
-        if build_graph or self.builder.graph is None:
-            self.builder.build(data)
-
+    def embed(self, graph):
         stellar_graph = StellarGraph.from_networkx(
-            self.builder.graph, node_features=FEATURE_KEY)
+            graph, node_features=FEATURE_KEY)
         nodes = list(stellar_graph.nodes())
 
         unsupervised_samples = UnsupervisedSampler(
@@ -175,14 +160,9 @@ class GraphSAGEEmbedder(Embedder):
 
 
 class SpringEmbedder(Embedder):
-    def __init__(self, graph_builder, seed=0):
-        super().__init__(graph_builder, seed=seed)
+    def __init__(self, seed=0):
+        super().__init__(seed=seed)
 
-    def embed(self, data, build_graph=True):
-        self.data = data
-
-        if build_graph or self.builder.graph is None:
-            self.builder.build(data)
-
+    def embed(self, graph):
         self.embeddings = np.array(
-            list(nx.spring_layout(self.builder.graph, seed=self.seed).values()))
+            list(nx.spring_layout(graph, seed=self.seed).values()))

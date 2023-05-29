@@ -58,6 +58,9 @@ class CheapestBuilder(GraphBuilder):
 
             self.add_edge(u, v, dist)
 
+            # if self.graph.number_of_edges() > self.dists.shape[0] and nx.is_connected(self.graph):
+            #     break
+
             if nx.is_connected(self.graph):
                 break
 
