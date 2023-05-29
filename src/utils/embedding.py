@@ -167,3 +167,13 @@ class SpringEmbedder(Embedder):
     def embed(self, graph, seed=0):
         self.embeddings = np.array(
             list(nx.spring_layout(graph, seed=seed).values()))
+
+
+class KamadaKawaiEmbedder(Embedder):
+    def __init__(self, embedding_dim=2, scale=1):
+        super().__init__(embedding_dim)
+        self.scale = scale
+
+    def embed(self, graph):
+        self.embeddings = np.array(
+            list(nx.kamada_kawai_layout(graph, dim=self.dims, scale=self.scale).values()))
