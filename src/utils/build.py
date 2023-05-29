@@ -35,6 +35,14 @@ class GraphBuilder:
     def build(data):
         raise NotImplementedError()
 
+    def save(self):
+        edge_count = self.graph.number_of_edges()
+        adj_list = np.zeros((edge_count, 3))
+        for i, (u, v, d) in enumerate(self.graph.edges(data=True)):
+            adj_list[i, :] = np.array([u, v, d['weight']])
+        print(adj_list.shape)
+        np.save('./compressions/mine.npy', adj_list)
+
 
 class CheapestBuilder(GraphBuilder):
     def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, check_completeness_step=None):
@@ -191,12 +199,13 @@ class SpanningNNBuilder(NNBuilder):
 
 
 class HierarchicalBuilder(GraphBuilder):
-    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, knn=1):
         super().__init__(weight_fun, feature_fun)
+        self.knn = knn
 
     def build(self, data):
         nn_builder = NNBuilder(weight_fun=self.weight_fun,
-                               feature_fun=None, knn=1)
+                               feature_fun=None, knn=self.knn)
         nn_builder.build(data)
         self.graph = nn_builder.graph
 
@@ -226,12 +235,13 @@ class HierarchicalBuilder(GraphBuilder):
 
 
 class HierarchicalClusterBuilder(GraphBuilder):
-    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, knn=1):
         super().__init__(weight_fun, feature_fun)
+        self.knn = knn
 
     def build(self, data):
         nn_builder = NNBuilder(weight_fun=self.weight_fun,
-                               feature_fun=None, knn=1)
+                               feature_fun=None, knn=self.knn)
         nn_builder.build(data)
 
         self.graph = nn_builder.graph
