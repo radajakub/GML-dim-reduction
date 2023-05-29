@@ -1,7 +1,7 @@
 from sklearn import metrics
 import networkx as nx
 import numpy as np
-from utils import weights, features
+from utils import weights, features, utils
 from itertools import combinations
 import os
 
@@ -41,8 +41,8 @@ class GraphBuilder:
         adj_list = np.zeros((edge_count, 3))
         for i, (u, v, d) in enumerate(self.graph.edges(data=True)):
             adj_list[i, :] = np.array([u, v, d['weight']])
-        os.makedirs('../out/', exist_ok=True)
-        np.save('../out/graph.npy', adj_list)
+        os.makedirs(utils.OUTPATH, exist_ok=True)
+        np.save(utils.GPATH, adj_list)
 
 
 class CheapestBuilder(GraphBuilder):

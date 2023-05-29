@@ -19,6 +19,7 @@ if sys.version_info[:3] <= (3,6,13):
 from tensorflow import keras
 import random
 import os
+from utils import utils
 
 
 class Embedder:
@@ -44,8 +45,8 @@ class Embedder:
 
     def save(self):
         arr = np.array(self.embeddings)
-        os.makedirs('../out/', exist_ok=True)
-        np.save('../out/embeddings.npy', arr)
+        os.makedirs(utils.OUTPATH, exist_ok=True)
+        np.save(utils.EPATH, arr)
 
 
 class Node2VecEmbedder(Embedder):
