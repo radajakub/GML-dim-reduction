@@ -3,6 +3,7 @@ import networkx as nx
 import numpy as np
 from utils import weights, features
 from itertools import combinations
+import os
 
 
 class GraphBuilder:
@@ -40,8 +41,8 @@ class GraphBuilder:
         adj_list = np.zeros((edge_count, 3))
         for i, (u, v, d) in enumerate(self.graph.edges(data=True)):
             adj_list[i, :] = np.array([u, v, d['weight']])
-        print(adj_list.shape)
-        np.save('./compressions/mine.npy', adj_list)
+        os.makedirs('../out/', exist_ok=True)
+        np.save('../out/graph.npy', adj_list)
 
 
 class CheapestBuilder(GraphBuilder):
