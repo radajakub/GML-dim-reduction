@@ -18,6 +18,7 @@ if sys.version_info[:3] <= (3,6,13):
     from stellargraph.data import UnsupervisedSampler
 from tensorflow import keras
 import random
+import os
 
 
 class Embedder:
@@ -40,6 +41,11 @@ class Embedder:
         # compute classification error between kmeans.labels and real labels
         ret = classification_report(labels, kmeans_embed.labels_)
         return ret
+
+    def save(self):
+        arr = np.array(self.embeddings)
+        os.makedirs('../out/', exist_ok=True)
+        np.save('../out/embeddings.npy', arr)
 
 
 class Node2VecEmbedder(Embedder):
