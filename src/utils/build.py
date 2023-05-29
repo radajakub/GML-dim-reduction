@@ -37,32 +37,39 @@ class GraphBuilder:
 
 
 class CheapestBuilder(GraphBuilder):
-    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, check_completeness_step=None):
         super().__init__(weight_fun, feature_fun)
+        self.step = check_completeness_step
 
     def build(self, data):
         # compute distances between the points
         self.dists = metrics.pairwise_distances(data)
+        node_count = data.shape[0]
 
         # build graph
         self.add_nodes(data)
 
-        triu_idx = np.triu_indices(self.dists.shape[0])
+        triu_idx = np.triu_indices(node_count)
         self.dists[triu_idx] = np.inf
 
         min_indices = np.unravel_index(np.argsort(
             self.dists, axis=None), self.dists.shape)
 
+        if self.step is None:
+            target_magnitude = max(np.round(np.log10(node_count)) - 2, 0)
+            self.step = int(np.power(10, target_magnitude))
+
+        it = 0
         for u, v in zip(*min_indices):
+            if it == self.step:
+                it = 0
+                if nx.is_connected(self.graph):
+                    break
+
             dist = self.dists[u, v]
 
             self.add_edge(u, v, dist)
-
-            # if self.graph.number_of_edges() > self.dists.shape[0] and nx.is_connected(self.graph):
-            #     break
-
-            if nx.is_connected(self.graph):
-                break
+            it += 1
 
         # add node features to graph
         self.compute_features(data)
