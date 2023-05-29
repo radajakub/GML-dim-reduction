@@ -111,7 +111,7 @@ class WatchYourStepEmbedder(Embedder):
 
 
 class GraphSAGEEmbedder(Embedder):
-    def __init__(self, graph_builder, embedding_dim=2, seed=0, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[20, 2], dropout=0.05, bias=False, loss=keras.losses.binary_crossentropy):
+    def __init__(self, graph_builder, embedding_dim=2, seed=0, num_walks=10, walk_length=10, batch_size=50, epochs=4, num_samples=[10, 5], layer_sizes=[20, 2], dropout=0.05, bias=False, loss=keras.losses.binary_crossentropy, normalize=None):
         super().__init__(graph_builder, embedding_dim, seed)
         self.num_walks = num_walks
         self.walk_length = walk_length
@@ -123,6 +123,7 @@ class GraphSAGEEmbedder(Embedder):
         self.dropout = dropout
         self.bias = bias
         self.loss = loss
+        self.normalize = normalize
 
     def embed(self, data, build_graph=True):
         self.data = data
@@ -140,7 +141,7 @@ class GraphSAGEEmbedder(Embedder):
             stellar_graph, self.batch_size, self.num_samples, weighted=True)
         train_gen = generator.flow(unsupervised_samples)
         graphsage = GraphSAGE(
-            layer_sizes=self.layer_sizes, generator=generator, bias=self.bias, dropout=self.dropout, normalize="l2"
+            layer_sizes=self.layer_sizes, generator=generator, bias=self.bias, dropout=self.dropout, normalize=self.normalize
         )
         x_inp, x_out = graphsage.in_out_tensors()
         prediction = link_classification(
