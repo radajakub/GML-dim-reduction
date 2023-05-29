@@ -5,15 +5,17 @@ import networkx as nx
 from utils.features import FEATURE_KEY
 from node2vec import Node2Vec
 import numpy as np
-from stellargraph.core import StellarGraph
-from stellargraph.mapper import AdjacencyPowerGenerator
-from stellargraph.layer import WatchYourStep
-from stellargraph.losses import graph_log_likelihood
 from tensorflow.keras import Model, regularizers
 import tensorflow as tf
-from stellargraph.mapper import GraphSAGELinkGenerator, GraphSAGENodeGenerator
-from stellargraph.layer import GraphSAGE, link_classification
-from stellargraph.data import UnsupervisedSampler
+import sys
+if sys.version_info[:3] <= (3,6,13):
+    from stellargraph.core import StellarGraph
+    from stellargraph.mapper import AdjacencyPowerGenerator
+    from stellargraph.layer import WatchYourStep
+    from stellargraph.losses import graph_log_likelihood
+    from stellargraph.mapper import GraphSAGELinkGenerator, GraphSAGENodeGenerator
+    from stellargraph.layer import GraphSAGE, link_classification
+    from stellargraph.data import UnsupervisedSampler
 from tensorflow import keras
 import random
 
@@ -111,6 +113,8 @@ class GraphSAGEEmbedder(Embedder):
         self.bias = bias
         self.loss = loss
         self.normalize = normalize
+        if sys.version_info[:3] <= (3,6,13):
+            raise Exception('Unsupported python version, use python 3.6')
 
     def embed(self, graph, np_seed=0, tf_seed=1, random_seed=2, sampler_seed=3, generator_seed=4):
         np.random.seed(np_seed)
