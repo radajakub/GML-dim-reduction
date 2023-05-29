@@ -25,7 +25,7 @@ class Embedder:
         self.data = None
         self.embeddings = None
 
-    def embed(self, data):
+    def embed(self, data, build_graph=True):
         return data
 
     def trustworthiness(self):
@@ -54,11 +54,14 @@ class Node2VecEmbedder(Embedder):
         self.min_count = min_count
         self.batch_words = batch_words
 
-    def embed(self, data):
+    def embed(self, data, build_graph=True):
         self.data = data
-        self.builder.build(data)
+
+        if build_graph or self.builder.graph is None:
+            self.builder.build(data)
+
         node2vec = Node2Vec(self.builder.graph, dimensions=self.dims, walk_length=self.walk_length,
-                            num_walks=self.num_walks, seed=self.seed, quiet=True)
+                            num_walks=self.num_walks, seed=self.seed, quiet=False)
         model = node2vec.fit(
             window=self.window, min_count=self.min_count, batch_words=self.batch_words)
 
@@ -66,6 +69,7 @@ class Node2VecEmbedder(Embedder):
             model.wv[sorted(w for w in model.wv.key_to_index)])
 
 
+# Embedding dim must be even!!
 class WatchYourStepEmbedder(Embedder):
     def __init__(self, graph_builder, embedding_dim=2, seed=0, adjacency_powers=10, num_walks=150, attention_regularization=0.5, batch_size=12, epochs=100):
         super().__init__(graph_builder, embedding_dim, seed)
@@ -75,10 +79,12 @@ class WatchYourStepEmbedder(Embedder):
         self.batch_size = batch_size
         self.epochs = epochs
 
-    def embed(self, data):
+    def embed(self, data, build_graph=True):
         self.data = data
 
-        self.builder.build(data)
+        if build_graph or self.builder.graph is None:
+            self.builder.build(data)
+
         stellar_graph = StellarGraph.from_networkx(self.builder.graph)
 
         generator = AdjacencyPowerGenerator(
@@ -118,9 +124,12 @@ class GraphSAGEEmbedder(Embedder):
         self.bias = bias
         self.loss = loss
 
-    def embed(self, data):
+    def embed(self, data, build_graph=True):
         self.data = data
-        self.builder.build(data)
+
+        if build_graph or self.builder.graph is None:
+            self.builder.build(data)
+
         stellar_graph = StellarGraph.from_networkx(
             self.builder.graph, node_features=FEATURE_KEY)
         nodes = list(stellar_graph.nodes())
@@ -168,9 +177,11 @@ class SpringEmbedder(Embedder):
     def __init__(self, graph_builder, seed=0):
         super().__init__(graph_builder, seed=seed)
 
-    def embed(self, data):
+    def embed(self, data, build_graph=True):
         self.data = data
-        self.builder.build(data)
+
+        if build_graph or self.builder.graph is None:
+            self.builder.build(data)
 
         self.embeddings = np.array(
             list(nx.spring_layout(self.builder.graph, seed=self.seed).values()))

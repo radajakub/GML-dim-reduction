@@ -73,29 +73,3 @@ def show_graph(graph, labels=None, outpath='', ax=None, title='', dpi=300):
     if outpath != '':
         plt.savefig(outpath, facecolor='white', transparent=False,
                     dpi=dpi, bbox_inches='tight')
-
-
-def show_embedding(embeddings, labels=None, aspect='auto', square=False, outpath='', show_numbers=False, title='', dpi=300):
-    if embeddings.shape[1] != 2:
-        raise Exception(
-            "cannot visualize embeddings with dimension other than 2")
-
-    ax = plt.figure().add_subplot()
-    x = embeddings[:, 0]
-    y = embeddings[:, 1]
-
-    ax.set_aspect(aspect, adjustable='box')
-    if square:
-        ax.set_box_aspect(1)
-    ax.set_title(title)
-    ax.grid(visible=True, which='both', axis='both')
-    ax.scatter(x, y, c=labels)
-
-    if show_numbers:
-        for idx in range(embeddings.shape[0]):
-            ax.annotate(idx, (embeddings[idx, 0], embeddings[idx, 1]))
-
-    # save plot if outpath is specified
-    if outpath != '':
-        plt.savefig(outpath, facecolor='white', transparent=False,
-                    dpi=dpi, bbox_inches='tight')
