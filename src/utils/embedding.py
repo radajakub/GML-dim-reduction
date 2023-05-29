@@ -112,19 +112,19 @@ class GraphSAGEEmbedder(Embedder):
         self.loss = loss
         self.normalize = normalize
 
-    def embed(self, graph, seed=0):
-        np.random.seed(seed)
-        tf.random.set_seed(seed)
-        random.seed(seed)
+    def embed(self, graph, np_seed=0, tf_seed=1, random_seed=2, sampler_seed=3, generator_seed=4):
+        np.random.seed(np_seed)
+        tf.random.set_seed(tf_seed)
+        random.seed(random_seed)
 
         stellar_graph = StellarGraph.from_networkx(
             graph, node_features=FEATURE_KEY)
         nodes = list(stellar_graph.nodes())
 
         unsupervised_samples = UnsupervisedSampler(
-            stellar_graph, nodes=nodes, length=self.walk_length, number_of_walks=self.num_walks, seed=seed)
+            stellar_graph, nodes=nodes, length=self.walk_length, number_of_walks=self.num_walks, seed=sampler_seed)
         generator = GraphSAGELinkGenerator(
-            stellar_graph, self.batch_size, self.num_samples, weighted=True, seed=seed)
+            stellar_graph, self.batch_size, self.num_samples, weighted=True, seed=generator_seed)
         train_gen = generator.flow(unsupervised_samples)
         graphsage = GraphSAGE(
             layer_sizes=self.layer_sizes, generator=generator, bias=self.bias, dropout=self.dropout, normalize=self.normalize
