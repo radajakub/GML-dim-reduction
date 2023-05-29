@@ -7,6 +7,7 @@ Package to develop new dimensionality reduction techniques using graphs and grap
 To run the `final_notebook_colab.ipynb` on GoogleColab no special installation is necessary.
 
 To run the package and `final_notebook.ipynb` locally it is required to install dependencies by using `pip install -r requirements.txt`.
+Using virtual environment with python 3.6 is recommended.
 
 Almost all functionality is enabled by default, however, python 3.6 is required for running the GraphSAGE embedding algorithm. This algorithm will not work otherwise.
 The StellarGraph library requires python 3.6, so using this specific version is highly recommended.
