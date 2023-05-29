@@ -8,7 +8,7 @@ import numpy as np
 from tensorflow.keras import Model, regularizers
 import tensorflow as tf
 import sys
-if sys.version_info[:3] <= (3,6,13):
+if sys.version_info[:2] == (3,6):
     from stellargraph.core import StellarGraph
     from stellargraph.mapper import AdjacencyPowerGenerator
     from stellargraph.layer import WatchYourStep
@@ -120,8 +120,6 @@ class GraphSAGEEmbedder(Embedder):
         self.bias = bias
         self.loss = loss
         self.normalize = normalize
-        if sys.version_info[:3] <= (3,6,13):
-            raise Exception('Unsupported python version, use python 3.6')
 
     def embed(self, graph, np_seed=0, tf_seed=1, random_seed=2, sampler_seed=3, generator_seed=4):
         np.random.seed(np_seed)
