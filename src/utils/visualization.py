@@ -54,18 +54,19 @@ def show_data(data, graph=None, labels=None, aspect='auto', square=False, outpat
                     dpi=dpi, bbox_inches='tight')
 
 
-def show_graph(graph, labels=None, outpath='', ax=None, title='', dpi=300):
+def show_graph(graph, labels=None, outpath='', ax=None, show_numbers=False, title='', dpi=300):
     if ax is None:
         ax = plt.figure().add_subplot()
     ax.set_title(title)
 
     layout = nx.spring_layout(graph)
-    nx.draw(graph, pos=layout, ax=ax, with_labels=True,
+    nx.draw(graph, pos=layout, ax=ax, with_labels=show_numbers,
             node_color=labels, font_color='w')
     labels = dict((key, round(val, ndigits=2))
                   for key, val in nx.get_edge_attributes(graph, 'weight').items())
-    nx.draw_networkx_edge_labels(
-        graph, pos=layout, ax=ax, edge_labels=labels)
+    if show_numbers:
+        nx.draw_networkx_edge_labels(
+            graph, pos=layout, ax=ax, edge_labels=labels)
 
     if outpath != '':
         plt.savefig(outpath, facecolor='white', transparent=False,
