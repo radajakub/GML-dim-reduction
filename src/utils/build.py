@@ -56,7 +56,7 @@ class CheapestBuilder(GraphBuilder):
             self.dists, axis=None), self.dists.shape)
 
         if self.step is None:
-            self.step = node_count // 100
+            self.step = max(node_count // 100, 1)
 
         it = 0
         for u, v in zip(*min_indices):
