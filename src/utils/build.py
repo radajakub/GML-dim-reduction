@@ -56,8 +56,7 @@ class CheapestBuilder(GraphBuilder):
             self.dists, axis=None), self.dists.shape)
 
         if self.step is None:
-            target_magnitude = max(np.round(np.log10(node_count)) - 2, 0)
-            self.step = int(np.power(10, target_magnitude))
+            self.step = node_count // 100
 
         it = 0
         for u, v in zip(*min_indices):
