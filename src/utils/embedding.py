@@ -26,9 +26,6 @@ class Embedder:
     def embed(self, graph):
         raise NotImplementedError("embed method is not implemented")
 
-    def trustworthiness(self, data):
-        return trustworthiness(data, self.embeddings)
-
     def eval_kmean_classif_report_embed_data(self, labels):
         '''
         Evaluates the embedding of the data using the given algorithm and labels
@@ -73,7 +70,7 @@ class WatchYourStepEmbedder(Embedder):
         self.epochs = epochs
 
     def embed(self, graph):
-        self.batch_size = min()
+        self.batch_size = min(self.batch_size, graph.number_of_nodes())
         stellar_graph = StellarGraph.from_networkx(graph)
 
         generator = AdjacencyPowerGenerator(
@@ -83,8 +80,7 @@ class WatchYourStepEmbedder(Embedder):
             num_walks=self.num_walks,
             embedding_dimension=self.dims,
             attention_regularizer=regularizers.l2(
-                self.attention_regularization),
-            seed=self.seed,
+                self.attention_regularization)
         )
         x_in, x_out = wys.in_out_tensors()
         model = Model(inputs=x_in, outputs=x_out)
