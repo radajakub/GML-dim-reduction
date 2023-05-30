@@ -5,7 +5,7 @@ Package to develop new dimensionality reduction techniques using graphs and grap
 ## Installation
 
 To run the `final_notebook_colab.ipynb` on Google Colab no special installation is necessary.
-The notebook will promt the user to upload `source.zip` file which contains our codes from `./src/` folder and is located at the same level as `final_notebook_colab.ipynb`.
+The notebook will prompt the user to upload `source.zip` file which contains our codes from `./src/` folder and is located at the same level as `final_notebook_colab.ipynb`.
 This is the easiest way to use this package in Colab.
 
 To run the package and `final_notebook.ipynb` locally it is required to install dependencies by using:
