@@ -35,7 +35,7 @@ More `Builders` than showcased in the `final_notebook.ipynb` are in `./src/utils
 
 These two instances are then passed into a function `reduce_dimension(data, builder, embedder)` from `./src/utils/dim_reduction.py` which connects them and returns the embedding of the input data.
 
-To visualize graphs and final embeddings use functions provided in `./src/utils/visualization.py`, to see metrics evaluating per
+To visualize graphs and final embeddings use functions provided in `./src/utils/visualization.py`, to measure quality of the embeddings use function `print_evaluation(data, embeddings)` in `./src/utils/evaluation.py`.
 
 ## Example
 
