@@ -4,7 +4,7 @@ import networkx as nx
 
 
 def show_data(data, graph=None, labels=None, aspect='auto', square=False, outpath='', show_numbers=False, title='', dpi=300):
-    if data.shape[1] > 3 and data.shape[1] < 2:
+    if data.shape[1] > 3 or data.shape[1] < 2:
         raise Exception(
             "cannot visualize data with dimension higher than 3 or lower than 2")
 
