@@ -17,6 +17,10 @@ class GraphBuilder:
         if self.feature_fun != None:
             self.feature_fun(data, self.graph)
 
+    def apply_weight_fun(self):
+        for _, _, data in self.graph.edges(data=True):
+            data['weight'] = self.weight_fun(data['weight'])
+
     def add_nodes(self, data):
         self.graph.add_nodes_from(np.arange(data.shape[0]))
 
@@ -33,7 +37,7 @@ class GraphBuilder:
         for _, _, d in self.graph.edges(data=True):
             d['weight'] *= scale
 
-    def build(data):
+    def build(self, data):
         raise NotImplementedError()
 
     def save(self):
@@ -115,6 +119,80 @@ class SpanningTreeBuilder(GraphBuilder):
         self.scale_edge_weights(-1)
         self.dists = full.dists
 
+
+class SpanningTreeThresholdBuilder(GraphBuilder):
+    # cutoff - values -1 for average and something from [0, 1] for position in sorted edges list
+    # use_edges - which edges consider for computing the cutoff value
+    #   - 'spanning' -> consider only edges already present in the spanning tree
+    #   - 'all' -> consider all edges
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, cutoff=-1, use_edges='spanning'):
+        super().__init__(weight_fun, feature_fun)
+        self.cutoff = cutoff
+        self.use_edges = use_edges
+
+    def build(self, data):
+        # construct a fully connected graph with weights corresponding to length directly
+        full = FullBuilder(weight_fun=lambda x : x, feature_fun=None)
+        full.build(data)
+        # compute minimum spanning tree and save as a graph of this object
+        self.graph = nx.minimum_spanning_tree(full.graph, weight='weight', algorithm='kruskal')
+        self.dists = full.dists
+
+        # obtain a list of weights to calculate statistics
+        length_dist = []
+        if self.use_edges == 'spanning':
+            length_dist = [data['weight'] for _, _, data in self.graph.edges(data=True)]
+        elif self.use_edges == 'all':
+            length_dist = [data['weight'] for _, _, data in full.graph.edges(data=True)]
+        else:
+            raise Exception("use_edges has to have a value from \{'spanning', 'all'\}")
+
+        # calculate the length threshold for adding edges
+        threshold = None
+        if self.cutoff == -1: # average case
+            threshold = np.average(length_dist)
+        elif self.cutoff >= 0 and self.cutoff <= 1: # quantile case
+            length_dist = np.sort(length_dist)
+            threshold = length_dist[int(len(length_dist - 1) * self.cutoff)]
+        else:
+            raise Exception("use_edges has to have a value from \{'spanning', 'all'\}")
+
+        # add all edges shorter than the cutoff
+        for u, v, data in full.graph.edges(data=True):
+            if data['weight'] < threshold:
+                self.add_edge(u, v, data['weight'])
+
+        self.apply_weight_fun()
+        self.compute_features(data)
+
+class SpanningNeighborhoodBuilder(GraphBuilder):
+    def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, neighborhood_size=1):
+        super().__init__(weight_fun, feature_fun)
+        self.neighborhood_size = neighborhood_size
+
+    def build(self, data):
+        # construct a fully connected graph with weights corresponding to length directly
+        full = FullBuilder(weight_fun=lambda x : x, feature_fun=None)
+        full.build(data)
+
+        # compute minimum spanning tree and save as a graph of this object
+        self.graph = nx.minimum_spanning_tree(full.graph, weight='weight', algorithm='kruskal')
+        self.dists = full.dists
+
+        # copy the spanning tree for reference, so we can add edges but compute the neighborhoods from the spanning tree
+        reference_graph = self.graph.copy()
+
+        # for each node find a neighborhood and add its edges
+        for u in self.graph.nodes():
+            # compute neighborhood of u in the reference graph
+            # TODO: try to use distance = 'weight' to compute distance by edge weights
+            neighbor_graph = nx.ego_graph(reference_graph, u, radius=self.neighborhood_size, center=False, undirected=True, distance=None)
+            for v in list(neighbor_graph.nodes()):
+                self.add_edge(u, v, self.dists[u, v])
+
+
+        self.apply_weight_fun()
+        self.compute_features(data)
 
 class NNBuilder(GraphBuilder):
     def __init__(self, weight_fun=weights.reciprocal, feature_fun=None, knn=1):
